@@ -1,8 +1,12 @@
 package dbops
 
 import (
+	"awesomeProject/video/api/defs"
+	"awesomeProject/video/api/utils"
+	"database/sql"
 	_ "github.com/go-sql-driver/mysql"
 	"log"
+	"time"
 )
 
 func AddUserCredential(LoginName string, pwd string) error {
@@ -10,30 +14,91 @@ func AddUserCredential(LoginName string, pwd string) error {
 	if err != nil {
 		return err
 	}
-	stmtIns.Exec(LoginName, pwd)
-	stmtIns.Close()
+	_, err = stmtIns.Exec(LoginName, pwd)
+	if err != nil {
+		return err
+	}
+	defer stmtIns.Close()
 	return nil
 }
 func GetUserCredential(loginName string) (string, error) {
-    stmtOut,err := dbConn.Prepare("select pwd from users where login_name=?")
-    if err != nil {
-    	log.Printf("%s",err)
-    	return "" ,nil
+	stmtOut, err := dbConn.Prepare("select pwd from users where login_name=?")
+	if err != nil {
+		log.Printf("%s", err)
+		return "", nil
 	}
-    var pwd string
-    stmtOut.QueryRow(loginName).Scan(&pwd)
-    stmtOut.Close()
+	var pwd string
+	err = stmtOut.QueryRow(loginName).Scan(&pwd)
+	if err != nil && err != sql.ErrNoRows {
+		return "", err
+	}
+	defer stmtOut.Close()
 	return pwd, nil
 }
 
-func DeleteUser(loginName string,pwd string) error  {
+func DeleteUser(loginName string, pwd string) error {
 	stmtDel, err := dbConn.Prepare("Delete from users where login_name=? and pwd = ?")
 	if err != nil {
-		log.Printf("%s",err)
+		log.Printf("%s", err)
 		return err
 	}
-	stmtDel.Exec(loginName,pwd)
-	stmtDel.Close()
+	_, err = stmtDel.Exec(loginName, pwd)
+	if err != nil {
+		return err
+	}
+	defer stmtDel.Close()
+	return nil
+}
+
+func AddNewVideo(aid int, name string) (*defs.VideoInfo, error) {
+	//create uuid
+	vid, err := utils.NewUUID()
+	if err != nil {
+		return nil, err
+	}
+	t := time.Now()
+	ctime := t.Format("2006-01-02 15:04:05")
+	stmtInt, err := dbConn.Prepare("Insert into video_info (id,author_id,name,display_ctime) values (?,?,?,?)")
+	if err != nil {
+		return nil, err
+	}
+	_, err = stmtInt.Exec(vid, aid, name, ctime)
+	if err != nil {
+		return nil, err
+	}
+	defer stmtInt.Close()
+	res := &defs.VideoInfo{vid, aid, name, ctime}
+	return res, nil
+}
+
+func GetVideoInfo(vid string)(*defs.VideoInfo,error)  {
+	stmtOut,err := dbConn.Prepare("select author_id,name,display_ctime from video_info where id = ?")
+	if err != nil {
+		return nil,err
+	}
+	var (
+		name,display_ctime string
+		aid int
+		)
+
+	err = stmtOut.QueryRow(vid).Scan(&aid,&name,&display_ctime)
+	if err != nil && err != sql.ErrNoRows{
+		return nil,err
+	}
+	defer stmtOut.Close()
+	return &defs.VideoInfo{vid,aid,name,display_ctime},nil
+}
+
+func DeleteVideoInfo(vid string) error  {
+	stmtDel,err := dbConn.Prepare("Delete from video_info where id = ?")
+	if err != nil {
+		return err
+	}
+	if _,err = stmtDel.Exec(vid);err != nil{
+		return err
+	}
+
+	defer stmtDel.Close()
 	return nil
 
 }
