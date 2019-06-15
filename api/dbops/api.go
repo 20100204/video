@@ -71,34 +71,75 @@ func AddNewVideo(aid int, name string) (*defs.VideoInfo, error) {
 	return res, nil
 }
 
-func GetVideoInfo(vid string)(*defs.VideoInfo,error)  {
-	stmtOut,err := dbConn.Prepare("select author_id,name,display_ctime from video_info where id = ?")
+func GetVideoInfo(vid string) (*defs.VideoInfo, error) {
+	stmtOut, err := dbConn.Prepare("select author_id,name,display_ctime from video_info where id = ?")
 	if err != nil {
-		return nil,err
+		return nil, err
 	}
 	var (
-		name,display_ctime string
-		aid int
-		)
+		name, display_ctime string
+		aid                 int
+	)
 
-	err = stmtOut.QueryRow(vid).Scan(&aid,&name,&display_ctime)
-	if err != nil && err != sql.ErrNoRows{
-		return nil,err
+	err = stmtOut.QueryRow(vid).Scan(&aid, &name, &display_ctime)
+	if err != nil && err != sql.ErrNoRows {
+		return nil, err
 	}
 	defer stmtOut.Close()
-	return &defs.VideoInfo{vid,aid,name,display_ctime},nil
+	return &defs.VideoInfo{vid, aid, name, display_ctime}, nil
 }
 
-func DeleteVideoInfo(vid string) error  {
-	stmtDel,err := dbConn.Prepare("Delete from video_info where id = ?")
+func DeleteVideoInfo(vid string) error {
+	stmtDel, err := dbConn.Prepare("Delete from video_info where id = ?")
 	if err != nil {
 		return err
 	}
-	if _,err = stmtDel.Exec(vid);err != nil{
+	if _, err = stmtDel.Exec(vid); err != nil {
 		return err
 	}
 
 	defer stmtDel.Close()
 	return nil
+
+}
+
+func AddNewComments(vid string, aid int, content string) error {
+	id, err := utils.NewUUID()
+	if err != nil {
+		return err
+	}
+	stmtIns, err := dbConn.Prepare("Insert Into comments (id,video_id,author_id,content) values (?,?,?,?)")
+	if err != nil {
+		return err
+	}
+	_, err = stmtIns.Exec(id, vid, aid, content)
+	if err != nil {
+		return err
+	}
+	defer stmtIns.Close()
+	return nil
+}
+
+func ListComments(vid string) ([]*defs.Comments, error) {
+	stmtOut, err := dbConn.Prepare("select comments.id,users.login_name,comments.content from comments  left join users on comments.author_id = users.id where comments.video_id= ?")
+	if err != nil {
+		return nil, err
+	}
+	var res []*defs.Comments
+	rows, err := stmtOut.Query(vid)
+	if err != nil {
+		return nil, err
+	}
+
+	for rows.Next() {
+		var id, name, content string
+		if err := rows.Scan(&id, &name, &content); err != nil {
+			return nil, err
+		}
+		temp := &defs.Comments{id, vid, name, content}
+		res = append(res, temp)
+	}
+
+	return res, nil
 
 }

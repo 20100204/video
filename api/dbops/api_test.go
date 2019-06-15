@@ -91,3 +91,28 @@ func testDeleteVideoInfo(t *testing.T) {
 			t.Errorf("Error of deleteVideoInfo:%v",err)
 		}
 }
+
+func TestComments(t *testing.T)  {
+	clearTables()
+	t.Run("AddUser",testAddUser)
+	t.Run("AddVideo",testAddVideoInfo)
+	t.Run("AddComments",testAddNewComments)
+	t.Run("ListComments",testListComments)
+}
+
+func testAddNewComments(t *testing.T) {
+	err := AddNewComments("1",1,"test Video comment")
+	if err != nil {
+		t.Errorf("Error of addcomments :%s",err)
+	}
+}
+
+func testListComments(t *testing.T) {
+	res,err := ListComments("1")
+	if err != nil {
+		t.Errorf("Errof of listcomments:%s",err)
+	}
+	 for k,v := range res{
+	 	t.Log(k,v)
+	 }
+}
